@@ -2,6 +2,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.io import imread
+from collections import namedtuple
 
 """
 Discrete Fourier Transform 1D
@@ -139,7 +140,6 @@ def test_dft1D():
     for sine in extract_sines(f[:N//2], dft[:N//2] * 2/N):
         ax3.plot(t, sine(t))
     ax4.plot(t, idft)
-    plt.show()
 
 
 """
@@ -185,18 +185,6 @@ def ifft2D(image):
     return ft2D(image, ifft1D)
 
 
-def display(image):
-    # if there is only one channel to show, display it as grayscale",
-    cm = None
-    if(len(image.shape)) == 2:
-        cm = "gray"
-    plt.figure(figsize=(5, 10))
-    plt.imshow(image, cmap=cm)
-    plt.xticks([])
-    plt.yticks([])
-    plt.show()
-
-
 def test_dft2D_with_small_image_pulse():
     original_image = np.array(
         [[0, 0, 0, 0],
@@ -204,20 +192,96 @@ def test_dft2D_with_small_image_pulse():
          [0, 1, 1, 0],
          [0, 0, 0, 0]])
 
-    display(original_image)
     dft = dft2D(original_image)
-    display(np.abs(dft))
     idft = idft2D(dft)
-    display(np.abs(idft))
+
+    cm = "gray"
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 10))
+    ax1.imshow(original_image, cmap=cm)
+    ax1.set_title("Original Image")
+    ax2.imshow(np.abs(dft), cmap=cm)
+    ax2.set_title("Frequency spectrum DFT")
+    ax3.imshow(np.abs(idft), cmap=cm)
+    ax3.set_title("Image with inverse DFT")
+
+
+def shiftlog(m):
+    return np.fft.fftshift(np.log(1+np.abs(m)))
+
+
+def logabs(m):
+    return np.log(1+np.abs(m))
+
+
+"""
+def fftshift(m):
+    sz = ceil(size(A)/2)
+    A = A([sz(1)+1:end, 1:sz(1)], [sz(2)+1:end, 1:sz(2)])
+"""
+
+Point = namedtuple('Point', 'x y')
+
+
+def distance(p1, p2):
+    return math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2)
+
+
+def filter_image(image, filter, update):
+    rows, columns = image.shape
+    center = Point(rows/2, columns/2)
+    for r in range(0, rows):
+        for c in range(0, columns):
+            if(filter(distance(Point(r, c), center))):
+                update(image, c, r)
+    return image
+
+
+def high_pass_fiter(image, threshold=50):
+    def hp(dist):
+        return dist < threshold
+
+    def update(image, c, r):
+        image[c][r] = 0
+    return filter_image(image, hp, update)
+
+
+def low_pass_fiter(image, threshold=50):
+    def lp(dist):
+        return dist >= threshold
+
+    def update(image, c, r):
+        image[c][r] = 1
+    return filter_image(image, lp, update)
+
 
 def test_fft2D_with_photo():
     original_image = imread("https://www.hlevkin.com/TestImages/cameraman.bmp")
-    display(original_image[:, :])
-    def shiftlog(m): return np.fft.fftshift(np.log(1+np.abs(m)))
-    fft1 = fft2D(original_image[:, :])
-    display(shiftlog(fft1))
-    ifft = np.fft.ifft2(fft1)
-    display(np.abs(ifft))
+    fft = fft2D(original_image)
+    shifted_fft = np.fft.fftshift(fft)
+    hp_fft = high_pass_fiter(shifted_fft.copy())
+    lp_fft = low_pass_fiter(shifted_fft.copy())
+    hp = ifft2D(hp_fft)
+    lp = ifft2D(lp_fft)
+
+    cm = "gray"
+    _, ((ax_orig, ax_hp, ax_lp), (ax_orig_freqs, ax_hp_freqs,
+                                  ax_lp_freqs)) = plt.subplots(2, 3, figsize=(10, 10))
+    ax_orig.imshow(original_image, cmap=cm)
+    ax_orig.set_title("Original Image")
+    ax_hp.imshow(np.abs(hp), cmap=cm)
+    ax_hp.set_title("High Pass Filter")
+    ax_lp.imshow(np.abs(lp), cmap=cm)
+    ax_lp.set_title("Low Pass Filter")
+
+    ax_orig_freqs.imshow(shiftlog(fft), cmap=cm)
+    ax_orig_freqs.set_title("Frequency spectrum FFT")
+    ax_hp_freqs.imshow(logabs(hp_fft), cmap=cm)
+    ax_hp_freqs.set_title("Frequency spectrum High Pass Filter")
+    ax_lp_freqs.imshow(logabs(lp_fft), cmap=cm)
+    ax_lp_freqs.set_title("Frequency spectrum Low Pass Filter")
+
+    plt.setp([ax_orig, ax_hp, ax_lp], xticks=[], yticks=[])
+    # TODO: correct ticks for the other axis -> (0, 0) in the middle
 
 
 def check_correctness_1D():
@@ -250,3 +314,4 @@ check_correctness_2D()
 test_dft1D()
 test_dft2D_with_small_image_pulse()
 test_fft2D_with_photo()
+plt.show()

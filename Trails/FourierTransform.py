@@ -4,11 +4,7 @@ import numpy as np
 from skimage.io import imread
 from collections import namedtuple
 
-"""
-Discrete Fourier Transform 1D
-"""
-
-
+#Discrete Fourier Transform 1D
 def dft1D(x):
     N = len(x)
     X = np.array([])
@@ -21,12 +17,7 @@ def dft1D(x):
         X = np.append(X, [Xk])
     return X
 
-
-"""
-Inverse Discrete Fourier Transform 1D
-"""
-
-
+#Inverse Discrete Fourier Transform 1D
 def idft1D(X):
     N = len(X)
     x = np.array([])
@@ -38,12 +29,7 @@ def idft1D(X):
         x = np.append(x, [(1/N) * xn])
     return x
 
-
-"""
-Fast Fourier Transform
-"""
-
-
+#Fast Fourier Transform
 def fft1D(x):
     N = len(x)
     # if N % 2 > 0:
@@ -63,12 +49,7 @@ def fft1D(x):
         frequency_bins[k+M] = even[k] - oddTerm
     return frequency_bins
 
-
-"""
-Inverse Fast Fourier Transform
-"""
-
-
+#Inverse Fast Fourier Transform
 def ifft1D(freqs):
     N = len(freqs)
     if(N <= 1):
@@ -86,12 +67,7 @@ def ifft1D(freqs):
         x[k+M] = (1/2)*(even[k] - oddTerm)
     return x
 
-
-"""
-Extract sines from a frequency signal
-"""
-
-
+#Extract sines from a frequency signal
 def extract_sines(possible_frequencies, dft_frequencies):
     functions = np.array([])
     for (frequency, dft) in zip(possible_frequencies, dft_frequencies):
@@ -107,7 +83,6 @@ def extract_sines(possible_frequencies, dft_frequencies):
             wrapped_sine = np.vectorize((sine)(amplitude, phase, frequency))
             functions = np.append(functions, [wrapped_sine])
     return functions
-
 
 def test_dft1D():
     time_period = 1  # 1 second
@@ -142,18 +117,14 @@ def test_dft1D():
     ax4.plot(t, idft)
 
 
-"""
-Discrete Fourier Transform 2D
-
-1.) do 1D DFT on each row (real to complex)
-the first step yields an intermediary 'picture' in which
-the horizontal axis is frequency f and the vertical axis is space y
-2.) do 1D DFT on each column of the result (complex to complex)
-the second step is to apply 1D Fourier transform individually to 
-the vertical line of the intermediate image
-"""
-
-
+# Discrete Fourier Transform 2D
+# 
+# 1.) do 1D DFT on each row (real to complex)
+# the first step yields an intermediary 'picture' in which
+# the horizontal axis is frequency f and the vertical axis is space y
+# 2.) do 1D DFT on each column of the result (complex to complex)
+# the second step is to apply 1D Fourier transform individually to 
+# he vertical line of the intermediate image
 def ft2D(image, ft):
     M, N = image.shape
     transformed_image = np.empty((M, N), dtype=complex)
@@ -184,7 +155,6 @@ def fft2D(image):
 def ifft2D(image):
     return ft2D(image, ifft1D)
 
-
 def test_dft2D_with_small_image_pulse():
     original_image = np.array(
         [[0, 0, 0, 0],
@@ -196,35 +166,24 @@ def test_dft2D_with_small_image_pulse():
     idft = idft2D(dft)
 
     cm = "gray"
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 10))
-    ax1.imshow(original_image, cmap=cm)
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (10, 10))
+    ax1.imshow(original_image, cmap = cm)
     ax1.set_title("Original Image")
-    ax2.imshow(np.abs(dft), cmap=cm)
+    ax2.imshow(np.abs(dft), cmap = cm)
     ax2.set_title("Frequency spectrum DFT")
-    ax3.imshow(np.abs(idft), cmap=cm)
+    ax3.imshow(np.abs(idft), cmap = cm)
     ax3.set_title("Image with inverse DFT")
-
-
-def shiftlog(m):
+    
+def shiftlog(m): 
     return np.fft.fftshift(np.log(1+np.abs(m)))
-
-
+ 
 def logabs(m):
     return np.log(1+np.abs(m))
 
-
-"""
-def fftshift(m):
-    sz = ceil(size(A)/2)
-    A = A([sz(1)+1:end, 1:sz(1)], [sz(2)+1:end, 1:sz(2)])
-"""
-
 Point = namedtuple('Point', 'x y')
-
 
 def distance(p1, p2):
     return math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2)
-
 
 def filter_image(image, filter, update):
     rows, columns = image.shape
@@ -235,54 +194,94 @@ def filter_image(image, filter, update):
                 update(image, c, r)
     return image
 
-
-def high_pass_fiter(image, threshold=50):
-    def hp(dist):
-        return dist < threshold
-
+def high_pass_filter(image, threshold = 50):
+    def hp (dist):
+        return dist < threshold 
     def update(image, c, r):
         image[c][r] = 0
     return filter_image(image, hp, update)
-
-
-def low_pass_fiter(image, threshold=50):
-    def lp(dist):
-        return dist >= threshold
-
+        
+def low_pass_filter(image, threshold = 50):
+    def lp (dist):
+        return dist >= threshold 
     def update(image, c, r):
         image[c][r] = 1
     return filter_image(image, lp, update)
+        
+def remove_noise(image, 
+    notch_size = 3,
+    threshold_for_unusual_peaks = 100000, 
+    threshold_for_kernel = 50):
+    rows, columns = image.shape
+    center = Point(rows/2, columns/2)
+    for r in range(0, rows):
+        for c in range(0, columns):
+            if( distance(Point(r, c), center) >= threshold_for_kernel and
+                math.sqrt(image[c, r].real**2 + image[c, r].imag**2) > threshold_for_unusual_peaks):
+                for cc in range(c-notch_size, c+notch_size):
+                    for rr in range(r-notch_size, r+notch_size):
+                        if(cc >= 0 and cc < columns and rr >= 0 and rr < rows):
+                            image[cc][rr] = 0
+                #image[c][r] = 0
+    return image
 
-
-def test_fft2D_with_photo():
+def test_fft2D_with_hp_and_lp_filters():
     original_image = imread("https://www.hlevkin.com/TestImages/cameraman.bmp")
     fft = fft2D(original_image)
     shifted_fft = np.fft.fftshift(fft)
-    hp_fft = high_pass_fiter(shifted_fft.copy())
-    lp_fft = low_pass_fiter(shifted_fft.copy())
+    hp_fft = high_pass_filter(shifted_fft.copy())
+    lp_fft = low_pass_filter(shifted_fft.copy())
     hp = ifft2D(hp_fft)
     lp = ifft2D(lp_fft)
+    rows, columns = fft.shape
+    rows_half = (int)(rows/2)
+    columns_half = (int)(columns/2)
 
     cm = "gray"
-    _, ((ax_orig, ax_hp, ax_lp), (ax_orig_freqs, ax_hp_freqs,
-                                  ax_lp_freqs)) = plt.subplots(2, 3, figsize=(10, 10))
-    ax_orig.imshow(original_image, cmap=cm)
+    _, ((ax_orig, ax_hp, ax_lp), (ax_orig_freqs, ax_hp_freqs, ax_lp_freqs)) = plt.subplots(2, 3, figsize = (10, 10))
+    ax_orig.imshow(original_image, cmap = cm)
     ax_orig.set_title("Original Image")
-    ax_hp.imshow(np.abs(hp), cmap=cm)
+    ax_hp.imshow(np.abs(hp), cmap = cm)
     ax_hp.set_title("High Pass Filter")
-    ax_lp.imshow(np.abs(lp), cmap=cm)
+    ax_lp.imshow(np.abs(lp), cmap = cm)
     ax_lp.set_title("Low Pass Filter")
 
-    ax_orig_freqs.imshow(shiftlog(fft), cmap=cm)
+    ax_orig_freqs.imshow(shiftlog(fft), cmap = cm)
     ax_orig_freqs.set_title("Frequency spectrum FFT")
-    ax_hp_freqs.imshow(logabs(hp_fft), cmap=cm)
-    ax_hp_freqs.set_title("Frequency spectrum High Pass Filter")
-    ax_lp_freqs.imshow(logabs(lp_fft), cmap=cm)
-    ax_lp_freqs.set_title("Frequency spectrum Low Pass Filter")
+    ax_hp_freqs.imshow(logabs(hp_fft), cmap = cm)
+    ax_hp_freqs.set_title("Frequency High Pass Filter")
+    ax_lp_freqs.imshow(logabs(lp_fft), cmap = cm)
+    ax_lp_freqs.set_title("Frequency Low Pass Filter")
 
-    plt.setp([ax_orig, ax_hp, ax_lp], xticks=[], yticks=[])
-    # TODO: correct ticks for the other axis -> (0, 0) in the middle
+    plt.setp([ax_orig, ax_hp, ax_lp, ax_orig_freqs, ax_hp_freqs, ax_lp_freqs], xticks = [], yticks = [])
+        
+def test_fft2D_with_noise_removal():
+    original_image = imread("data\moonlanding.png")
+    fft = fft2D(original_image)
+    shifted_fft = np.fft.fftshift(fft)
 
+    filtered_fft = remove_noise(shifted_fft.copy(),
+        notch_size=5, 
+        threshold_for_unusual_peaks=200000)
+    ifft = ifft2D(filtered_fft)
+
+    rows, columns = fft.shape
+    rows_half = (int)(rows/2)
+    columns_half = (int)(columns/2)
+
+    cm = "gray"
+    _, ((ax_orig, ax_filtered), (ax_orig_freqs, ax_filtered_freqs)) = plt.subplots(2, 2, figsize = (10, 10))
+    ax_orig.imshow(original_image, cmap = cm)
+    ax_orig.set_title("Original Image")
+    ax_filtered.imshow(np.abs(ifft), cmap = cm)
+    ax_filtered.set_title("Removed noise")
+
+    ax_orig_freqs.imshow(shiftlog(fft), cmap = cm)
+    ax_orig_freqs.set_title("Frequency spectrum FFT")
+    ax_filtered_freqs.imshow(logabs(filtered_fft), cmap = cm)
+    ax_filtered_freqs.set_title("Noise Removal Filter")
+
+    plt.setp([ax_orig, ax_filtered, ax_orig_freqs, ax_filtered_freqs], xticks = [], yticks = [])
 
 def check_correctness_1D():
     N = 32
@@ -296,7 +295,6 @@ def check_correctness_1D():
     print("FFT 1D: ", np.allclose(custom_fft, fft))
     print("Inverse FFT 1D: ", np.allclose(ifft1D(custom_fft), ifft))
 
-
 def check_correctness_2D():
     m = np.random.rand(32, 32)
     dft = dft2D(m)
@@ -308,10 +306,10 @@ def check_correctness_2D():
     print("FFT 2D: ", np.allclose(custom_fft, fft))
     print("IFFT 2D: ", np.allclose(ifft2D(custom_fft), ifft))
 
-
 check_correctness_1D()
 check_correctness_2D()
 test_dft1D()
 test_dft2D_with_small_image_pulse()
-test_fft2D_with_photo()
+test_fft2D_with_hp_and_lp_filters()
+test_fft2D_with_noise_removal()
 plt.show()

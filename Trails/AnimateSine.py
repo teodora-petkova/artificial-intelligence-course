@@ -39,5 +39,6 @@ def animate_sine():
     return anim
 
 anim = animate_sine()
+#display.HTML(anim.to_jshtml())
 #display.HTML(anim.to_html5_video())
 plt.show()

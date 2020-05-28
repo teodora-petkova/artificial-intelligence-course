@@ -221,28 +221,53 @@ def remove_noise(image,
                     image[c_notch_start:c_notch_end, r_notch_start:r_notch_end], notch_size-1)
     return image
 
-def test_fft2D_with_sinusoids():
-    columns, rows = 256, 256
-    frequency1 = 4
-    #frequency2 = 13
+
+
+def test_fft2D_with_small_image_pulses(size1, size2, title):
+    columns, rows = 128, 128
+    image = np.zeros((columns, rows))
+    square1 = (10, columns/2, size1) # initial point + size
+    square2 = (118, columns/2, size2)
+    def in_square(r, c, square):
+        (square_x, square_y, square_size) = square
+        return square_x<=r and r<square_x+square_size and \
+            square_y<=c and c<square_y+square_size
+
+    for c in range(0, columns+1):
+        for r in range(0, rows+1):
+            if(in_square(r, c, square1) or in_square(r, c, square2)):
+                image[c, r] = 1
+    fft = fft2D(image)
+
+    cm = "gray"
+    _, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 10))
+    ax1.imshow(image, cmap=cm)
+    ax1.set_title(title)
+    ax2.imshow(np.fft.fftshift(np.abs(fft)), cmap=cm, extent=[-columns/2, columns/2, -rows/2, rows/2])
+    ax2.set_title("Frequency spectrum DFT")
+
+    plt.setp([ax1], xticks=[], yticks=[])
+
+def test_fft2D_with_sinusoids(frequency1, frequency2, title=""):
+    columns, rows = 128, 128
     x = np.linspace(0, 1, rows)
     y = np.linspace(0, 1, rows)
-    X = np.repeat(x[np.newaxis, :], 256, axis=0)
-    Y = np.repeat(y[:, np.newaxis], 256, axis=1)
-    sinusoid = np.sin(frequency1*2*np.pi*X)  # + frequency2*2*np.pi*Y)
+    X = np.repeat(x[np.newaxis, :], rows, axis=0)
+    Y = np.repeat(y[:, np.newaxis], columns, axis=1)
+    sinusoid = np.sin(frequency1*2*np.pi*X) + np.sin(frequency2*2*np.pi*Y)
 
     fft = fft2D(sinusoid)
 
     cm = "gray"
     _, (ax_orig, ax_freq) = plt.subplots(1, 2, figsize=(10, 10))
     ax_orig.imshow(sinusoid, cmap=cm)
-    ax_orig.set_title("Sinusoid %d Hertz" % frequency1)
+    ax_orig.set_title("Sinusoid: %s" % title)
 
     square = 150
     # zoom-in
-    ax_freq.imshow(shiftlog(fft)[-square:square, -square:square],
+    ax_freq.imshow(np.fft.fftshift(np.abs(fft))[-square:square, -square:square],
                    cmap=cm, extent=[-square/2, square/2, -square/2, square/2])
-    ax_freq.set_title("Frequency spectrum FFT")
+    ax_freq.set_title("Zoomed-in frequency spectrum FFT")
 
     plt.setp([ax_orig], xticks=[], yticks=[])
 
@@ -346,6 +371,10 @@ check_correctness_2D()
 test_dft1D()
 test_dft2D_with_small_image_pulse()
 test_fft2D_with_hp_and_lp_filters()
-test_fft2D_with_sinusoids()
+test_fft2D_with_small_image_pulses(1, 1, "Two dots")
+test_fft2D_with_small_image_pulses(5, 5, "Two squares")
+test_fft2D_with_sinusoids(4, 0, r"$ sin(4(2\pi)x) $")
+test_fft2D_with_sinusoids(11, 0, r"$ sin(11(2\pi)x) $")
+test_fft2D_with_sinusoids(3, 11, r"$ sin(3(2\pi)x) + sin(11(2\pi)y) $")
 test_fft2D_with_noise_removal()
 plt.show()
